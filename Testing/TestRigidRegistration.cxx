@@ -1,3 +1,5 @@
+#include "vtkLinearTransform.h"
+#include "vtkMNITransformReader.h"
 #include "vtkMNITransformWriter.h"
 #include "vtkCamera.h"
 #include "vtkDICOMImageReader.h"
@@ -26,6 +28,7 @@
 
 namespace {
 
+//-----Function Prototypes-------------------------------------------------
 int RegressionTestMatrix(vtkMatrix4x4 *matrix, const char *baselinePath);
 bool FileExists(const char* filePath);
 void ReadDICOMImage(vtkImageData *data,
@@ -37,17 +40,33 @@ void SetViewFromMatrix(vtkRenderer *renderer,
 void ReadMINCImage(vtkImageData *data,
                    vtkMatrix4x4 *matrix,
                    const char *fileName);
+void GetMatrixFromFile(double matrix[3][3], const char *path);
+void GetPrimitiveArrayFromObject(double target[3][3], vtkMatrix4x4 *source);
+double RadianToDegree(double radian);
+bool QuaternionsAreEqual(double baseline[4],
+                         double target[4],
+                         double threshold);
 
+//-------------------------------------------------------------------------
 void GetMatrixFromFile(double matrix[3][3], const char *path)
 {
-  // TODO: Actual implementation
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      matrix[i][j] = 1.0;
+  vtkSmartPointer<vtkMNITransformReader> reader =
+    vtkSmartPointer<vtkMNITransformReader>::New();
+  reader->SetFileName(path);
+  vtkLinearTransform *transform =
+    vtkLinearTransform::SafeDownCast(reader->GetTransform());
+  vtkMatrix4x4 *inputMatrix = transform->GetMatrix();
+
+  for (int i = 0; i < 3; i++)
+    {
+    for (int j = 0; j < 3; j++)
+      {
+      matrix[i][j] = inputMatrix->GetElement(i, j);
+      }
     }
-  }
 }
 
+//-------------------------------------------------------------------------
 void GetPrimitiveArrayFromObject(double target[3][3], vtkMatrix4x4 *source)
 {
   for (int i = 0; i < 3; i++)
@@ -59,13 +78,38 @@ void GetPrimitiveArrayFromObject(double target[3][3], vtkMatrix4x4 *source)
     }
 }
 
+//-------------------------------------------------------------------------
+double RadianToDegree(double radian)
+{
+  return (radian * 180 / (atan(1)*4));
+}
+
+//-------------------------------------------------------------------------
 bool QuaternionsAreEqual(double baseline[4],
                          double target[4],
                          double threshold)
 {
+  double baseTheta = 0.0;
+  double targetTheta = 0.0;
+
+  baseTheta = atan2(sqrt(pow(baseline[1], 2) +
+                         pow(baseline[2], 2) +
+                         pow(baseline[3], 2)), baseline[0]);
+  targetTheta = atan2(sqrt(pow(target[1], 2) +
+                           pow(target[2], 2) +
+                           pow(target[3], 2)), target[0]);
+
+  double baseDegree = RadianToDegree(baseTheta);
+  double targetDegree = RadianToDegree(targetTheta);
+
+  if (abs(baseDegree - targetDegree) < threshold)
+  {
+    return true;
+  }
   return false;
 }
 
+//-------------------------------------------------------------------------
 int RegressionTestMatrix(vtkMatrix4x4 *matrix, const char *baselinePath)
 {
   double baselineMatrix[3][3];
@@ -78,7 +122,7 @@ int RegressionTestMatrix(vtkMatrix4x4 *matrix, const char *baselinePath)
   GetPrimitiveArrayFromObject(targetMatrix, matrix);
   vtkMath::Matrix3x3ToQuaternion(targetMatrix, targetQuaternion);
 
-  if (QuaternionsAreEqual(baselineQuaternion, targetQuaternion) == true)
+  if (QuaternionsAreEqual(baselineQuaternion, targetQuaternion, 1e-1) == true)
     {
     return 0;
     }
@@ -86,12 +130,14 @@ int RegressionTestMatrix(vtkMatrix4x4 *matrix, const char *baselinePath)
   return 1;
 }
 
+//-------------------------------------------------------------------------
 bool FileExists(const char* filePath)
 {
   ifstream file(filePath);
   return file;
 }
 
+//-------------------------------------------------------------------------
 void ReadDICOMImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *directoryName)
 {
@@ -140,6 +186,7 @@ void ReadDICOMImage(
   matrix->Modified();
 }
 
+//-------------------------------------------------------------------------
 void ReadMINCImage(
   vtkImageData *data, vtkMatrix4x4 *matrix, const char *fileName)
 {
@@ -183,6 +230,7 @@ void ReadMINCImage(
   matrix->Modified();
 }
 
+//-------------------------------------------------------------------------
 void SetViewFromMatrix(
   vtkRenderer *renderer,
   vtkInteractorStyleImage *istyle,
@@ -203,6 +251,7 @@ void SetViewFromMatrix(
 
 } /* end of namespace */
 
+//-------------------------------------------------------------------------
 int TestRigidRegistration(int argc, char *argv[])
 {
   std::string outputImagePath(argv[6]);
