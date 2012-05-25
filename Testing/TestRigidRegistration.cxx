@@ -28,7 +28,7 @@
 
 namespace {
 
-//-----Function Prototypes-------------------------------------------------
+//---------------------Function Prototypes----------------------------------
 int RegressionTestMatrix(vtkMatrix4x4 *matrix, const char *baselinePath);
 bool FileExists(const char* filePath);
 void ReadDICOMImage(vtkImageData *data,
@@ -92,6 +92,7 @@ bool QuaternionsAreEqual(double baseline[4],
   double baseTheta = 0.0;
   double targetTheta = 0.0;
 
+  // Calculate the quaternions' angles
   baseTheta = atan2(sqrt(pow(baseline[1], 2) +
                          pow(baseline[2], 2) +
                          pow(baseline[3], 2)), baseline[0]);
@@ -99,13 +100,16 @@ bool QuaternionsAreEqual(double baseline[4],
                            pow(target[2], 2) +
                            pow(target[3], 2)), target[0]);
 
+  // Convert angles from radian to degrees for threshold comparison
   double baseDegree = RadianToDegree(baseTheta);
   double targetDegree = RadianToDegree(targetTheta);
 
+  // Return true if the difference of the angles is within the threshold
   if (abs(baseDegree - targetDegree) < threshold)
   {
     return true;
   }
+
   return false;
 }
 
@@ -560,16 +564,18 @@ int TestRigidRegistration(int argc, char *argv[])
     stage = (stage + 1) % 2;
     }
 
-  vtkSmartPointer<vtkWindowToImageFilter> windowToImageFilter =
-    vtkSmartPointer<vtkWindowToImageFilter>::New();
-  windowToImageFilter->SetInput(renderWindow);
-  windowToImageFilter->SetMagnification(1);
-  windowToImageFilter->SetInputBufferTypeToRGB();
-  windowToImageFilter->Update();
-
+  // Determine if it is necessary to build the baseline image.
+  // Return test failure after creating baseline.
   bool builtBaselineFiles = false;
   if (!FileExists(outputImagePath.c_str()))
     {
+    vtkSmartPointer<vtkWindowToImageFilter> windowToImageFilter =
+      vtkSmartPointer<vtkWindowToImageFilter>::New();
+    windowToImageFilter->SetInput(renderWindow);
+    windowToImageFilter->SetMagnification(1);
+    windowToImageFilter->SetInputBufferTypeToRGB();
+    windowToImageFilter->Update();
+
     vtkSmartPointer<vtkPNGWriter> writer =
       vtkSmartPointer<vtkPNGWriter>::New();
     writer->SetFileName(outputImagePath.c_str());
@@ -578,6 +584,8 @@ int TestRigidRegistration(int argc, char *argv[])
     builtBaselineFiles = true;
     }
 
+  // Determine if it is necessary to build the baseline matrix.
+  // Return test failure after creating baseline.
   if (!FileExists(outputMatrixPath.c_str()))
     {
     vtkSmartPointer<vtkMNITransformWriter> transformWriter =
@@ -596,6 +604,8 @@ int TestRigidRegistration(int argc, char *argv[])
     return 1;
     }
 
+  // If the baseline image and matrix already exist, perform
+  // regression tests
   bool testHasFailed = false;
 
   renderWindow->Render();
