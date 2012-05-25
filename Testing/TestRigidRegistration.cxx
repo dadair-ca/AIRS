@@ -26,7 +26,7 @@
 
 namespace {
 
-int RegressionTestMatrix(vtkMatrix4x4 *matrix);
+int RegressionTestMatrix(vtkMatrix4x4 *matrix, const char *baselinePath);
 bool FileExists(const char* filePath);
 void ReadDICOMImage(vtkImageData *data,
                     vtkMatrix4x4 *matrix,
@@ -38,19 +38,51 @@ void ReadMINCImage(vtkImageData *data,
                    vtkMatrix4x4 *matrix,
                    const char *fileName);
 
-int RegressionTestMatrix(vtkMatrix4x4 *matrix)
+void GetMatrixFromFile(double matrix[3][3], const char *path)
 {
-  double baselineMatrix[3][3];
+  // TODO: Actual implementation
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
-      baselineMatrix[i][j] = 1.0;
+      matrix[i][j] = 1.0;
     }
   }
+}
+
+void GetPrimitiveArrayFromObject(double target[3][3], vtkMatrix4x4 *source)
+{
+  for (int i = 0; i < 3; i++)
+    {
+    for (int j = 0; j < 3; j++)
+      {
+        target[i][j] = source->GetElement(i, j);
+      }
+    }
+}
+
+bool QuaternionsAreEqual(double baseline[4],
+                         double target[4],
+                         double threshold)
+{
+  return false;
+}
+
+int RegressionTestMatrix(vtkMatrix4x4 *matrix, const char *baselinePath)
+{
+  double baselineMatrix[3][3];
   double baselineQuaternion[4];
+  GetMatrixFromFile(baselineMatrix, baselinePath);
   vtkMath::Matrix3x3ToQuaternion(baselineMatrix, baselineQuaternion);
-  for (int i = 0; i < 4; i++) {
-    std::cout << baselineQuaternion[i] << std::endl;
-  }
+
+  double targetMatrix[3][3];
+  double targetQuaternion[4];
+  GetPrimitiveArrayFromObject(targetMatrix, matrix);
+  vtkMath::Matrix3x3ToQuaternion(targetMatrix, targetQuaternion);
+
+  if (QuaternionsAreEqual(baselineQuaternion, targetQuaternion) == true)
+    {
+    return 0;
+    }
+
   return 1;
 }
 
@@ -530,13 +562,12 @@ int TestRigidRegistration(int argc, char *argv[])
     testHasFailed = true;
     }
 
-  /*
-  if (RegressionTestMatrix(registration->GetTransform()->GetMatrix()) == 1)
+  if (RegressionTestMatrix(registration->GetTransform()->GetMatrix(),
+                           outputMatrixPath.c_str()) == 1)
     {
     cerr << "Matrix Regression Test Failed." << std::endl;
     testHasFailed = true;
     }
-    */
 
   return testHasFailed ? 1 : 0;
 }
