@@ -26,6 +26,8 @@
 #include "vtkTransform.h"
 #include "vtkWindowToImageFilter.h"
 
+const double kTHRESHOLD = 1.0;
+
 namespace {
 
 //---------------------Function Prototypes----------------------------------
@@ -126,7 +128,8 @@ int RegressionTestMatrix(vtkMatrix4x4 *matrix, const char *baselinePath)
   GetPrimitiveArrayFromObject(targetMatrix, matrix);
   vtkMath::Matrix3x3ToQuaternion(targetMatrix, targetQuaternion);
 
-  if (QuaternionsAreEqual(baselineQuaternion, targetQuaternion, 1e-1) == true)
+  if (QuaternionsAreEqual(baselineQuaternion, targetQuaternion, kTHRESHOLD)
+      == true)
     {
     return 0;
     }
